@@ -13,9 +13,27 @@
 
 #include <cinttypes>          // for uint8_t
 #include <cstddef>            // for size_t
+#include <utility>
 #include <vector>             // for vector
 
 namespace xgboost {
+
+struct MultiRTreeNodeStat {
+  /*! \brief loss change caused by current split by output index */
+  std::vector<bst_float> loss_chg;
+  /*! \brief sum of hessian values, used to measure coverage of data by output index */
+  std::vector<bst_float> sum_hess;
+  /*! \brief number of child that is leaf node known up to now */
+  int leaf_child_cnt {0};
+
+  MultiRTreeNodeStat() = default;
+  MultiRTreeNodeStat(std::vector<float> loss_chg, std::vector<float> sum_hess) :
+                                                                loss_chg{std::move(loss_chg)}, sum_hess{std::move(sum_hess)} {}
+  bool operator==(const MultiRTreeNodeStat& b) const {
+    return loss_chg == b.loss_chg && sum_hess == b.sum_hess && leaf_child_cnt == b.leaf_child_cnt;
+  }
+};
+
 struct TreeParam;
 /**
  * \brief Tree structure for multi-target model.
@@ -33,6 +51,7 @@ class MultiTargetTree : public Model {
   std::vector<std::uint8_t> default_left_;
   std::vector<float> split_conds_;
   std::vector<float> weights_;
+  std::vector<MultiRTreeNodeStat> stats_;
 
   [[nodiscard]] linalg::VectorView<float const> NodeWeight(bst_node_t nidx) const {
     auto beg = nidx * this->NumTarget();
@@ -57,7 +76,8 @@ class MultiTargetTree : public Model {
   void Expand(bst_node_t nidx, bst_feature_t split_idx, float split_cond, bool default_left,
               linalg::VectorView<float const> base_weight,
               linalg::VectorView<float const> left_weight,
-              linalg::VectorView<float const> right_weight);
+              linalg::VectorView<float const> right_weight, std::vector<float> loss_chg,
+              std::vector<float> sum_hess);
 
   [[nodiscard]] bool IsLeaf(bst_node_t nidx) const { return left_[nidx] == InvalidNodeId(); }
   [[nodiscard]] bst_node_t Parent(bst_node_t nidx) const { return parent_.at(nidx); }
@@ -91,6 +111,9 @@ class MultiTargetTree : public Model {
 
   void LoadModel(Json const& in) override;
   void SaveModel(Json* out) const override;
+  const auto& get_stats() const {
+    return stats_;
+  }
 };
 }  // namespace xgboost
 #endif  // XGBOOST_MULTI_TARGET_TREE_MODEL_H_

@@ -856,7 +856,7 @@ void RegTree::ExpandNode(bst_node_t nidx, bst_feature_t split_index, float split
   CHECK_GT(param_.size_leaf_vector, 1);
 
   this->p_mt_tree_->Expand(nidx, split_index, split_cond, default_left, base_weight, left_weight,
-                           right_weight);
+                           right_weight, std::vector<float>(), std::vector<float>());
 
   split_types_.resize(this->Size(), FeatureType::kNumerical);
   split_categories_segments_.resize(this->Size());

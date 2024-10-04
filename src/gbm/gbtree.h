@@ -253,15 +253,20 @@ class GBTree : public GradientBooster {
       });
     } else if (importance_type == "gain" || importance_type == "total_gain") {
       if (!model_.trees.empty() && model_.trees.front()->IsMultiTarget()) {
-        LOG(FATAL) << "gain/total_gain " << MTNotImplemented();
+        add_score([&](auto const& tree, bst_node_t nidx, bst_feature_t split) {
+          const auto& r = tree.GetMultiTargetTree()->get_stats().at(nidx).loss_chg;
+          gain_map[split] += std::accumulate(r.begin(), r.end(), 0.f);
+        });
+      } else {
+        add_score([&](auto const& tree, bst_node_t nidx, bst_feature_t split) {
+          gain_map[split] += tree.Stat(nidx).loss_chg;
+        });
       }
-      add_score([&](auto const& tree, bst_node_t nidx, bst_feature_t split) {
-        gain_map[split] += tree.Stat(nidx).loss_chg;
-      });
+
     } else if (importance_type == "cover" || importance_type == "total_cover") {
-      if (!model_.trees.empty() && model_.trees.front()->IsMultiTarget()) {
-        LOG(FATAL) << "cover/total_cover " << MTNotImplemented();
-      }
+//      if (!model_.trees.empty() && model_.trees.front()->IsMultiTarget()) {
+//        LOG(FATAL) << "cover/total_cover " << MTNotImplemented();
+//      }
       add_score([&](auto const& tree, bst_node_t nidx, bst_feature_t split) {
         gain_map[split] += tree.Stat(nidx).sum_hess;
       });
@@ -276,6 +281,12 @@ class GBTree : public GradientBooster {
         gain_map[i] /= std::max(1.0f, static_cast<float>(split_counts[i]));
       }
     }
+
+//    if (model_.trees.front()->IsMultiTarget() && model_.learner_model_param->multi_strategy == MultiStrategy::kOneOutputPerTree) {
+//      for (float & i : gain_map) {
+//        i /= static_cast<float>(model_.learner_model_param->num_feature);
+//      }
+//    }
 
     features->clear();
     scores->clear();

@@ -167,7 +167,8 @@ void MultiTargetTree::SetLeaf(bst_node_t nidx, linalg::VectorView<float const> w
 void MultiTargetTree::Expand(bst_node_t nidx, bst_feature_t split_idx, float split_cond,
                              bool default_left, linalg::VectorView<float const> base_weight,
                              linalg::VectorView<float const> left_weight,
-                             linalg::VectorView<float const> right_weight) {
+                             linalg::VectorView<float const> right_weight,
+                             std::vector<float> loss_chg, std::vector<float> sum_hess) {
   CHECK(this->IsLeaf(nidx));
   CHECK_GE(parent_.size(), 1);
   CHECK_EQ(parent_.size(), left_.size());
@@ -214,6 +215,9 @@ void MultiTargetTree::Expand(bst_node_t nidx, bst_feature_t split_idx, float spl
     l_weight(i) = left_weight(i);
     r_weight(i) = right_weight(i);
   }
+
+  this->stats_.at(nidx).loss_chg = std::move(loss_chg);
+  this->stats_.at(nidx).sum_hess = std::move(sum_hess);
 }
 
 bst_target_t MultiTargetTree::NumTarget() const { return param_->size_leaf_vector; }
